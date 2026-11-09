@@ -1,0 +1,8 @@
+# Do not commit local credentials or private test data
+.env
+.env.*
+!.env.example
+service-account*.json
+*adminsdk*.json
+private/
+students/
