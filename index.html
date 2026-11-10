@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>北極16宮格攻防戰</title><style>:root{font-family:system-ui,'Noto Sans TC',sans-serif;color:#fff8eb;background:#142239}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#314960,#142239 65%);min-height:100vh}main{max-width:1050px;margin:auto;padding:20px}h1{color:#f4cf87}h2{margin:8px 0 12px}button,input,select{font:inherit}button{border:1px solid #a9b6c5;background:#304861;color:white;border-radius:10px;padding:11px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:#a0782e;border-color:#f4cf87}.danger{background:#743b45}.card{background:#21334c;border:1px solid #51647c;border-radius:16px;padding:16px;margin:12px 0}.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.muted{color:#bdc8d5}.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:560px}.cell{aspect-ratio:1;background:#30445b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(22px,5vw,42px);border:2px solid #6d7b8c;position:relative}.cell small{font-size:12px}.cell.red{border-color:#ff8c89;background:#673e51}.cell.green{border-color:#8fe3a9;background:#305f59}.cell.gold{border-color:#f4cf87;background:#66563c}.cell.picked{outline:4px solid white}.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:16px}input{background:#101e32;color:white;border:1px solid #77869a;border-radius:8px;padding:10px;max-width:100%}.tag{display:inline-block;border:1px solid #8191a4;border-radius:30px;padding:5px 10px;margin:3px}.log{white-space:pre-wrap;font-size:14px}.hide{display:none!important}@media(max-width:700px){.cols{grid-template-columns:1fr}main{padding:12px}.cell{font-size:26px}}.invite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.invite{padding:10px;background:#18283e;border-radius:12px}.invite h4{margin:0 0 8px}.invite svg{display:block;width:min(190px,100%);height:auto;background:white;margin-bottom:8px}.invite a{display:block;color:#f4cf87;margin-bottom:8px}.invite button{margin:2px}@media print{body *{visibility:hidden}#teamInvites,#teamInvites *{visibility:visible}#teamInvites{position:absolute;inset:0;display:flex;flex-wrap:wrap}#teamInvites .invite{background:white;color:black;break-inside:avoid}#teamInvites a,#teamInvites button{display:none}}body{--red:#b62c39;--green:#13734b;--gold:#f4cb4f}.cell.red,.score-red,.mission-reveal.red{background:var(--red);color:white;border-color:#ff9aa2}.cell.green,.score-green,.mission-reveal.green{background:var(--green);color:white;border-color:#9de5bf}.cell.gold,.score-gold,.mission-reveal.gold{background:var(--gold);color:#252015;border-color:#fff2ab}.cell small{font-weight:800}.cell-number{position:absolute;top:4px;left:7px;font-size:12px;font-weight:800}.score-list{display:grid;gap:6px}.score-list p{margin:0;padding:8px 12px;border-radius:8px;font-weight:750}.eyebrow{color:#f4cf87;font-weight:750}.round-guide li{margin:0 0 12px}.action-guide,.mission-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.action-guide>div,.mission-options>li{background:#16263d;padding:12px;border-radius:10px}.action-guide p,.mission-options p{margin:6px 0 0}.mission-options{list-style:none;padding:0}.mission-reveal{text-align:center;border:2px solid #8498b1;border-radius:14px;background:#16263d;padding:14px;margin:14px 0}.mission-reveal h3{font-size:clamp(24px,6vw,42px);margin:6px 0}.mission-reveal p{margin:5px 0}.mission-reveal p:last-child{font-size:1.1rem}summary{cursor:pointer;font-weight:750}details{margin:12px 0}nav{margin:10px 0}nav button[aria-pressed=true]{border-color:#f4cf87;background:#59623c}#reset{margin-top:12px}.board{max-width:unset}</style></head><body><main>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>北極16宮格攻防戰</title><style>:root{font-family:system-ui,'Noto Sans TC',sans-serif;color:#fff8eb;background:#142239}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#314960,#142239 65%);min-height:100vh}main{max-width:1050px;margin:auto;padding:20px}h1{color:#f4cf87}h2{margin:8px 0 12px}button,input,select{font:inherit}button{border:1px solid #a9b6c5;background:#304861;color:white;border-radius:10px;padding:11px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:#a0782e;border-color:#f4cf87}.danger{background:#743b45}.card{background:#21334c;border:1px solid #51647c;border-radius:16px;padding:16px;margin:12px 0}.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.muted{color:#bdc8d5}.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:560px}.cell{aspect-ratio:1;background:#30445b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(22px,5vw,42px);border:2px solid #6d7b8c;position:relative}.cell small{font-size:12px}.cell.red{border-color:#ff8c89;background:#673e51}.cell.green{border-color:#8fe3a9;background:#305f59}.cell.gold{border-color:#f4cf87;background:#66563c}.cell.picked{outline:4px solid white}.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:16px}input{background:#101e32;color:white;border:1px solid #77869a;border-radius:8px;padding:10px;max-width:100%}.tag{display:inline-block;border:1px solid #8191a4;border-radius:30px;padding:5px 10px;margin:3px}.log{white-space:pre-wrap;font-size:14px}.hide{display:none!important}@media(max-width:700px){.cols{grid-template-columns:1fr}main{padding:12px}.cell{font-size:26px}}.invite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.invite{padding:10px;background:#18283e;border-radius:12px}.invite h4{margin:0 0 8px}.invite svg{display:block;width:min(190px,100%);height:auto;background:white;margin-bottom:8px}.invite a{display:block;color:#f4cf87;margin-bottom:8px}.invite button{margin:2px}@media print{body *{visibility:hidden}#teamInvites,#teamInvites *{visibility:visible}#teamInvites{position:absolute;inset:0;display:flex;flex-wrap:wrap}#teamInvites .invite{background:white;color:black;break-inside:avoid}#teamInvites a,#teamInvites button{display:none}}body{--red:#b62c39;--green:#13734b;--gold:#f4cb4f}.cell.red,.score-red,.mission-reveal.red{background:var(--red);color:white;border-color:#ff9aa2}.cell.green,.score-green,.mission-reveal.green{background:var(--green);color:white;border-color:#9de5bf}.cell.gold,.score-gold,.mission-reveal.gold{background:var(--gold);color:#252015;border-color:#fff2ab}.cell small{font-weight:800}.cell-number{position:absolute;top:4px;left:7px;font-size:12px;font-weight:800}.score-list{display:grid;gap:6px}.score-list p{margin:0;padding:8px 12px;border-radius:8px;font-weight:750}.eyebrow{color:#f4cf87;font-weight:750}.round-guide li{margin:0 0 12px}.action-guide,.mission-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.action-guide>div,.mission-options>li{background:#16263d;padding:12px;border-radius:10px}.action-guide p,.mission-options p{margin:6px 0 0}.mission-options{list-style:none;padding:0}.mission-reveal{text-align:center;border:2px solid #8498b1;border-radius:14px;background:#16263d;padding:14px;margin:14px 0}.mission-reveal h3{font-size:clamp(24px,6vw,42px);margin:6px 0}.mission-reveal p{margin:5px 0}.mission-reveal p:last-child{font-size:1.1rem}summary{cursor:pointer;font-weight:750}details{margin:12px 0}nav{margin:10px 0}nav button[aria-pressed=true]{border-color:#f4cf87;background:#59623c}#reset{margin-top:12px}.board{max-width:unset}.team-banner{margin-left:auto;padding:6px 22px;border-radius:12px;font-size:clamp(23px,5vw,38px);line-height:1.15}.round-event{margin:12px 0;padding:18px;border:2px solid #f4cf87;border-radius:16px;background:#47301c;color:#fff8eb;text-align:center}.round-event h2{font-size:clamp(28px,6vw,49px);margin:4px 0}.round-event p{margin:4px 0;font-size:clamp(16px,3vw,22px)}.revealed-moves p{margin:7px 0;line-height:1.65}.action-team{display:inline-block;padding:1px 6px;border-radius:5px}.cell .move-mark{position:absolute;left:3px;right:3px;bottom:3px;padding:3px 0;border-radius:5px;background:rgba(10,20,34,.84);color:#fff4ce;font-weight:800;font-size:clamp(11px,2.5vw,18px);pointer-events:none}.cell.picked>small{visibility:hidden}[data-action][aria-pressed=true]{outline:3px solid #ffd675;outline-offset:2px;background:#514124}.cell:disabled{opacity:1;cursor:default}</style></head><body><main>
   <h1>❄ 北極 16 宮格攻防戰</h1>
   <section id="setup" class="card">
     <h2>選擇登入方式</h2>
@@ -13,7 +13,7 @@
   <div id="app" class="hide">
     <div class="row">
       <span id="identity" class="tag"></span><span id="connection" class="tag">連線中</span>
-      <button id="logout" class="hide">登出</button>
+      <button id="logout" class="hide">登出</button><strong id="teamBanner" class="team-banner hide"></strong>
     </div>
     <nav id="teacherNav" class="row hide" aria-label="教師頁面">
       <button id="showControl" aria-pressed="true">即時戰況與控制</button>
@@ -57,14 +57,17 @@
     </section>
     <section id="playPanel" class="hide">
       <div class="row"><span id="phase" class="tag"></span><span id="round" class="tag"></span></div>
+      <section id="roundEvent" class="round-event hide" aria-live="polite">
+        <p id="eventRound"></p><h2 id="eventTitle"></h2><p id="eventDescription"></p>
+      </section>
       <div class="cols">
         <section class="card">
           <h2>🎄 聖誕領地棋盤</h2><div id="board" class="board"></div>
-          <p id="revealedMoves" aria-live="polite"></p>
         </section>
         <div>
           <section class="card">
             <h2>🏆 即時戰況</h2><div id="score" class="score-list"></div>
+            <h3 id="actionsRound">各隊行動</h3><div id="revealedMoves" class="revealed-moves" aria-live="polite"></div>
           </section>
           <section id="teacherPanel" class="card hide">
             <h2>🎅 回合控制</h2>
@@ -75,8 +78,6 @@
             </div>
             <p id="drawStatus" aria-live="polite"></p><p id="submissions"></p>
             <details id="teacherSecrets"><summary>各組祕密任務</summary><div id="missionSummary"></div></details>
-            <h3>本回合搞笑事件</h3>
-            <button id="event">抽搞笑籤（第 2、4、6 回合）</button><p id="eventText"></p>
             <h3>回合紀錄</h3><div id="history" class="log"></div>
             <button id="reset" class="danger">重設全場</button>
           </section>
@@ -90,7 +91,6 @@
             </div>
             <p id="selection">先選行動，再點棋盤。</p><p id="pending"></p>
             <div class="row">
-              <button id="removeMove">撤銷最後一項</button>
               <button class="primary" id="submit">送出行動</button>
             </div>
           </section>
@@ -101,5 +101,5 @@
 </main>
 <script src="https://chukps-north-pole-battle.web.app/firebase-client-config.js"></script>
 <script src="qrcode.js"></script>
-<script type="module" src="app.js?v=missions1"></script>
+<script type="module" src="app.js?v=actions1"></script>
 </body></html>

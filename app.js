@@ -10,7 +10,33 @@ if (!firebaseConfig) {
 }
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getDatabase(app);
 const symbols=['🎄','🎁','🔔','⭐','🦌','🍪','❄️','🧦','⛄','🛷','🍬','🎅','🧸','🕯️','🎀','🏠'];
-const teams=['red','green','gold'],names={red:'紅隊',green:'綠隊',gold:'金隊'},events=['企鵝上班：本回合全員企鵝步','北極靜音：本回合只能手勢討論','麋鹿迷路：出發前原地轉一圈','精靈語言：發言前先說 Ho Ho Ho','雪人融化：以慢動作完成體能任務','聖誕導航故障：由平常最少發言的組員指揮'];
+const teams = ['red', 'green', 'gold'];
+const names = {red: '紅隊', green: '綠隊', gold: '金隊'};
+const actionNames = {claim: '占領', attack: '進攻', defend: '防守'};
+const actionIcons = {claim: '🚩', attack: '⚔', defend: '🛡'};
+const eventCards = {
+  2: [
+    ['企鵝上班', '這一輪做體能挑戰時，大家用小碎步前進。'],
+    ['麋鹿迷路', '每位隊員出發前，先在原地慢慢轉一圈。'],
+    ['雪人慢動作', '這一輪的體能動作，全部用慢動作完成。']
+  ],
+  4: [
+    ['北極靜音', '這一輪討論戰術時，只能用手勢。'],
+    ['HO HO HO 稅', '這一輪每次開口前，先說「HO HO HO」。'],
+    ['老闆換人當', '請一位還沒當過指揮的隊員，代表你們說明這輪的行動。']
+  ],
+  6: [
+    ['聖誕定格', '隊伍送出行動後，全員擺出聖誕樹的姿勢，定格三秒。'],
+    ['精靈換手', '請平常最少操作平板的人，負責點選並送出最後一輪的行動。'],
+    ['麋鹿導航', '由一人操作平板，其他隊員用「第幾列、第幾格」指路。']
+  ]
+};
+function drawRoundEvent(round, random = Math.random) {
+  const cards = eventCards[round];
+  if (!cards) return null;
+  const [title, description] = cards[Math.floor(random() * cards.length)];
+  return {title, description};
+}
 const initial=()=>({round:0,phase:'idle',board:Array(16).fill('empty'),event:'',history:[]});
 let user=null,role=null,team=null,state=initial(),draft=[],kind='claim';
 const isTeacher = () => role === 'teacher';
@@ -247,15 +273,113 @@ onAuthStateChanged(auth, async current => {
   }));
   render();
 });
-function render(){if(!user)return;renderViews();$('phase').textContent=({idle:'尚未開始',open:'開放提交',revealed:'本回合已結算',finished:'遊戲結束'})[state.phase]||state.phase;$('round').textContent='第 '+state.round+' / 6 回合';const b=boardArray();$('board').innerHTML='';b.forEach((owner,i)=>{const el=document.createElement('button');el.className='cell '+(owner==='empty'?'':owner)+(draft.some(m=>m.cell===i)?' picked':'');el.innerHTML='<span class="cell-number">'+(i+1)+'</span><span>'+symbols[i]+'</span><small>'+(owner==='empty'?'空格':names[owner])+'</small>';el.onclick=()=>choose(i);$('board').append(el)});$('score').innerHTML=teams.map(t=>`<p class="score-${t}"><b>${names[t]}</b>：${b.filter(x=>x===t).length} 格</p>`).join('');$('eventText').textContent=state.event||'尚未抽籤';
-$('revealedMoves').textContent = teams.filter(t => state.revealed?.[t]).map(t =>
-  names[t] + '：' + state.revealed[t].moves.map(m =>
-    ({claim:'占領', attack:'進攻', defend:'防守'})[m.type] + '第 ' + (m.cell + 1) + ' 格'
-  ).join('、')).join('｜');$('history').textContent=(state.history||[]).map(h=>`第${h.round}回合：${h.summary}`).join('\n');if(role==='teacher'){const allDrawn=renderMissionControls();$('submissions').innerHTML=teams.map(t=>`${names[t]}：${state.submissions?.[t]?'🔒 已封存':'⏳ 未提交'}`).join('　');$('start').disabled=!allDrawn||!ready||!connected||state.phase==='open'||state.round>=6;$('resolve').disabled=!ready||!connected||state.phase!=='open'||!teams.every(t=>state.submissions?.[t]);$('event').disabled=!ready||!connected||state.phase!=='open'||![2,4,6].includes(state.round)||!!state.event}if(role==='student'){const submitted=!!state.submissions?.[team];const enabled=studentStage==='game'&&!!teamMission&&ready&&connected&&!submitting&&!!team&&state.phase==='open'&&!submitted;$('teamStatus').textContent=team?`${names[team]}｜${submitted?'🔒 已送出，等老師揭曉':enabled?'跟隊友商量後，選兩個行動':'等待老師開啟回合'}`:'尚未入隊，請掃描老師提供的隊伍 QR Code';document.querySelectorAll('[data-action]').forEach(el=>el.disabled=!enabled);$('submit').disabled=!enabled||draft.length!==2;$('removeMove').disabled=!enabled||!draft.length;$('pending').textContent=draft.map(m=>({claim:'占領',attack:'進攻',defend:'防守'})[m.type]+' '+(m.cell+1)+'格').join('／');}};
-function choose(cell){if(studentStage!=='game'||!teamMission||!ready||!connected||submitting||role!=='student'||!team||state.phase!=='open'||state.submissions?.[team]||draft.length>=2)return;if(draft.some(m=>m.cell===cell))return alert('兩項指令必須選不同格');const owner=boardArray()[cell];if(kind==='claim'&&owner!=='empty')return alert('占領只能選空格');if(kind==='attack'&&(owner==='empty'||owner===team))return alert('進攻只能選敵方格');if(kind==='defend'&&owner!==team)return alert('防守只能選自己的格');draft.push({type:kind,cell});render()}
-document.querySelectorAll('[data-action]').forEach(el=>el.onclick=()=>{kind=el.dataset.action;$('selection').textContent='目前選擇：'+({claim:'占領空格',attack:'進攻敵格',defend:'防守己格'})[kind]+'，請點選棋盤'});$('removeMove').onclick=()=>{draft.pop();render()};
+function render() {
+  if (!user) return;
+  renderViews();
+  const teacher = isTeacher();
+  $('teamBanner').className = 'team-banner ' + (!teacher && team ? 'score-' + team : 'hide');
+  $('teamBanner').textContent = !teacher && team ? names[team] : '';
+  $('phase').textContent = ({idle:'尚未開始',open:'開放提交',revealed:'本輪已結算',finished:'遊戲結束'})[state.phase] || state.phase;
+  $('round').textContent = '第 ' + state.round + ' / 6 輪';
+  const board = boardArray();
+  const enabled = canChoose();
+  $('board').replaceChildren();
+  board.forEach((owner, cell) => {
+    const move = draft.find(item => item.cell === cell);
+    const tile = document.createElement('button');
+    tile.className = 'cell ' + (owner === 'empty' ? '' : owner) + (move ? ' picked' : '');
+    const ownerName = owner === 'empty' ? '空格' : names[owner];
+    tile.innerHTML = '<span class="cell-number">' + (cell + 1) + '</span><span>' + symbols[cell] + '</span><small>' + ownerName + '</small>';
+    if (move) {
+      const mark = document.createElement('span');
+      mark.className = 'move-mark';
+      mark.textContent = actionIcons[move.type] + ' ' + actionNames[move.type];
+      tile.append(mark);
+    }
+    tile.setAttribute('aria-label', '第 ' + (cell + 1) + ' 格，' + ownerName + (move ? '，已選' + actionNames[move.type] + '，再按取消' : ''));
+    if (!teacher) {
+      tile.disabled = !enabled;
+      tile.setAttribute('aria-pressed', String(!!move));
+      tile.onclick = () => choose(cell);
+    }
+    $('board').append(tile);
+  });
+  $('score').innerHTML = teams.map(t => `<p class="score-${t}"><b>${names[t]}</b>：${board.filter(owner => owner === t).length} 格</p>`).join('');
+  renderRevealedMoves();
+  const event = state.event;
+  $('roundEvent').classList.toggle('hide', !event);
+  $('eventRound').textContent = '第 ' + state.round + ' 輪・搞笑事件';
+  $('eventTitle').textContent = typeof event === 'string' ? event.split('：')[0] : event?.title || '';
+  $('eventDescription').textContent = typeof event === 'string' ? event.split('：').slice(1).join('：') : event?.description || '';
+  $('history').textContent = (state.history || []).map(item => `第 ${item.round} 輪：${item.summary}`).join('\n');
+
+  if (teacher) {
+    const allDrawn = renderMissionControls();
+    $('submissions').innerHTML = teams.map(t => `<div>${names[t]}：${state.submissions?.[t] ? '🔒 已送出' : '⏳ 未送出'}</div>`).join('');
+    $('start').disabled = !allDrawn || !ready || !connected || state.phase === 'open' || state.round >= 6;
+    $('resolve').disabled = !ready || !connected || state.phase !== 'open' || !teams.every(t => state.submissions?.[t]);
+  } else {
+    const submitted = !!state.submissions?.[team];
+    $('teamStatus').textContent = submitted ? '🔒 已送出，等老師揭曉' : enabled ? '跟隊友商量後，選兩個行動' : '等待老師開啟回合';
+    for (const button of document.querySelectorAll('[data-action]')) {
+      const selected = button.dataset.action === kind;
+      button.disabled = !enabled;
+      button.setAttribute('aria-pressed', String(selected));
+    }
+    $('selection').textContent = '目前選擇：' + actionNames[kind] + '。點棋盤選格，再點同一格就能取消。';
+    $('submit').disabled = !enabled || draft.length !== 2;
+    $('pending').textContent = draft.map(move => actionNames[move.type] + ' 第 ' + (move.cell + 1) + ' 格').join('／');
+  }
+}
+
+function renderRevealedMoves() {
+  const list = $('revealedMoves');
+  list.replaceChildren();
+  const revealedRound = teams.map(t => state.revealed?.[t]?.round).find(Number.isInteger);
+  $('actionsRound').textContent = revealedRound ? '第 ' + revealedRound + ' 輪的行動' : '各隊行動';
+  if (!revealedRound) {
+    const empty = document.createElement('p');
+    empty.textContent = '等老師揭曉後，各隊的行動會顯示在這裡。';
+    list.append(empty);
+    return;
+  }
+  for (const t of teams) {
+    const row = document.createElement('p');
+    const label = document.createElement('strong');
+    label.className = 'action-team score-' + t;
+    label.textContent = names[t];
+    const moves = state.revealed[t]?.moves || [];
+    row.append(label, ' ' + (moves.map(move => actionIcons[move.type] + ' ' + actionNames[move.type] + '第 ' + (move.cell + 1) + ' 格').join('、') || '沒有行動'));
+    list.append(row);
+  }
+}
+
+function canChoose() {
+  return studentStage === 'game' && !!teamMission && ready && connected && !submitting &&
+    role === 'student' && !!team && state.phase === 'open' && !state.submissions?.[team];
+}
+
+function choose(cell) {
+  if (!canChoose()) return;
+  const selected = draft.findIndex(move => move.cell === cell);
+  if (selected >= 0) {
+    draft.splice(selected, 1);
+    render();
+    return;
+  }
+  if (draft.length >= 2) return alert('已經選好兩格。要改的話，再點一次想取消的格子。');
+  const owner = boardArray()[cell];
+  if (kind === 'claim' && owner !== 'empty') return alert('占領只能選空格');
+  if (kind === 'attack' && (owner === 'empty' || owner === team)) return alert('進攻只能選敵方格');
+  if (kind === 'defend' && owner !== team) return alert('防守只能選自己的格');
+  draft.push({type: kind, cell});
+  render();
+}
+for (const button of document.querySelectorAll('[data-action]')) {
+  button.onclick = () => { kind = button.dataset.action; render(); };
+}
 $('submit').onclick = async () => {
-  if (studentStage !== 'game' || !teamMission || !ready || !connected || submitting || draft.length !== 2 || !team || state.phase !== 'open') return;
+  if (!canChoose() || draft.length !== 2) return;
   submitting = true;
   render();
   const {round, session} = state;
@@ -383,22 +507,14 @@ $('drawMissions').onclick = () => {
 $('start').onclick = () => {
   const {round, session} = state;
   const newSession = crypto.randomUUID();
+  const event = drawRoundEvent(round + 1);
   return updateGame(game => {
     const current = game?.public || initial();
     if (!game?.missions || current.round !== round || current.session !== session || current.phase === 'open' || current.round >= 6) return;
-    return {missions: game.missions, public: {...current, session: current.session || newSession, round: current.round + 1, phase:'open', event:'', revealed:null}};
+    return {missions: game.missions, public: {...current, session: current.session || newSession, round: current.round + 1, phase:'open', event}};
   });
 };
 
-$('event').onclick = () => {
-  const {round, session} = state;
-  const event = events[Math.floor(Math.random() * events.length)];
-  return updateGame(game => {
-    const current = game?.public;
-    if (current?.session !== session || current?.round !== round || current?.phase !== 'open' || current.event || ![2,4,6].includes(round)) return;
-    return {...game, public: {...current, event}};
-  });
-};
 function settle(old){const board=Array.from({length:16},(_,i)=>old.board?.[i]||'empty');const subs=old.submissions||{};const moves=teams.flatMap(team=>(subs[team]?.moves||[]).map(m=>({...m,team})));const shields=new Set(moves.filter(m=>m.type==='defend'&&board[m.cell]===m.team).map(m=>m.cell));const attacks=moves.filter(m=>m.type==='attack');const removed=[];for(const m of attacks){if(board[m.cell]!=='empty'&&board[m.cell]!==m.team){if(shields.has(m.cell))shields.delete(m.cell);else removed.push(m.cell)}}for(const c of removed)board[c]='empty';const claims=moves.filter(m=>m.type==='claim');const grouped={};for(const m of claims)(grouped[m.cell]??=[]).push(m.team);for(const [cell,claimants] of Object.entries(grouped)){// 占領僅對回合開始時為空的格子有效
  if((old.board?.[cell]||'empty')==='empty'&&claimants.length===1)board[Number(cell)]=claimants[0];}
  const summary=teams.map(t=>`${names[t]} ${board.filter(x=>x===t).length}格`).join('，');return {...old,board,phase:old.round>=6?'finished':'revealed',history:[...(old.history||[]),{round:old.round,summary}],submissions:null};}
