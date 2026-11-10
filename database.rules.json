@@ -7,24 +7,16 @@
         ".read": "auth != null && auth.uid === $uid"
       }
     },
-    "assignments": {
-      ".read": "auth != null && root.child('teachers').child(auth.uid).val() === true",
-      ".write": "auth != null && root.child('teachers').child(auth.uid).val() === true",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".validate": "newData.val() === 'red' || newData.val() === 'green' || newData.val() === 'gold'"
-      }
-    },
     "game": {
       ".read": "auth != null && root.child('teachers').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('teachers').child(auth.uid).val() === true",
       "public": {
-        ".read": "auth != null && (root.child('assignments').child(auth.uid).exists() || root.child('teachers').child(auth.uid).val() === true)"
+        ".read": "auth != null && (auth != null && root.child('teachers').child(auth.uid).val() === true || root.child('pairing/members').child(auth.uid).child('team').exists())"
       },
       "submissions": {
         "$team": {
-          ".read": "auth != null && root.child('assignments').child(auth.uid).val() === $team",
-          ".write": "auth != null && root.child('assignments').child(auth.uid).val() === $team && ($team === 'red' || $team === 'green' || $team === 'gold') && root.child('game/public/phase').val() === 'open' && !data.exists() && newData.exists()",
+          ".read": "auth != null && root.child('pairing/members').child(auth.uid).child('team').val() === $team",
+          ".write": "auth != null && root.child('pairing/members').child(auth.uid).child('team').val() === $team && ($team === 'red' || $team === 'green' || $team === 'gold') && root.child('game/public/phase').val() === 'open' && !data.exists() && newData.exists()",
           ".validate": "newData.hasChildren(['round','session','moves']) && newData.child('round').val() === root.child('game/public/round').val() && newData.child('session').val() === root.child('game/public/session').val()",
           "round": {
             ".validate": "newData.isNumber()"
@@ -61,6 +53,42 @@
             "$other": {
               ".validate": false
             }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "pairing": {
+      ".read": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      "invites": {
+        "$code": {
+          ".read": "auth != null && data.exists() && (!data.child('uid').exists() || data.child('uid').val() === auth.uid)",
+          ".write": "auth != null && data.exists() && newData.exists() && (!data.child('uid').exists() || data.child('uid').val() === auth.uid) && newData.child('team').val() === data.child('team').val() && newData.child('uid').val() === auth.uid && root.child('pairing/codes').child(newData.child('team').val()).val() === $code && newData.parent().parent().child('members').child(auth.uid).child('team').val() === newData.child('team').val() && newData.parent().parent().child('members').child(auth.uid).child('code').val() === $code",
+          ".validate": "newData.hasChildren(['team'])",
+          "team": {
+            ".validate": "(newData.val() === 'red' || newData.val() === 'green' || newData.val() === 'gold')"
+          },
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      },
+      "members": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && newData.exists() && newData.child('code').isString() && (!data.exists() || (data.child('code').val() === newData.child('code').val() && data.child('team').val() === newData.child('team').val())) && root.child('pairing/codes').child(newData.child('team').val()).val() === newData.child('code').val() && newData.parent().parent().child('invites').child(newData.child('code').val()).child('team').val() === newData.child('team').val() && newData.parent().parent().child('invites').child(newData.child('code').val()).child('uid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['team','code'])",
+          "team": {
+            ".validate": "(newData.val() === 'red' || newData.val() === 'green' || newData.val() === 'gold')"
+          },
+          "code": {
+            ".validate": "newData.isString()"
           },
           "$other": {
             ".validate": false

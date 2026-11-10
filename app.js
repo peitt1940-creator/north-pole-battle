@@ -1,6 +1,6 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {getAuth,signInAnonymously,signInWithEmailAndPassword,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
-import {getDatabase,ref,onValue,set,runTransaction,get} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js';
+import {getDatabase,ref,onValue,set,runTransaction,get,update} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js';
 const $ = id => document.getElementById(id);
 const firebaseConfig = window.northPoleFirebaseConfig;
 if (!firebaseConfig) {
@@ -12,9 +12,11 @@ const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getDatabase
 const symbols=['🎄','🎁','🔔','⭐','🦌','🍪','❄️','🧦','⛄','🛷','🍬','🎅','🧸','🕯️','🎀','🏠'];
 const teams=['red','green','gold'],names={red:'紅隊',green:'綠隊',gold:'金隊'},events=['企鵝上班：本回合全員企鵝步','北極靜音：本回合只能手勢討論','麋鹿迷路：出發前原地轉一圈','精靈語言：發言前先說 Ho Ho Ho','雪人融化：以慢動作完成體能任務','聖誕導航故障：由平常最少發言的組員指揮'];
 const initial=()=>({round:0,phase:'idle',board:Array(16).fill('empty'),event:'',history:[]});
-let user=null,role=null,team=null,state=initial(),assignments={},draft=[],kind='claim';
+let user=null,role=null,team=null,state=initial(),draft=[],kind='claim';
 const isTeacher = () => role === 'teacher';
 const boardArray=()=>Array.from({length:16},(_,i)=>state.board?.[i]||'empty');
+const gameUrl = 'https://peitt1940-creator.github.io/north-pole-battle/';
+let pairing = {};
 let listeners = [];
 let stopGame = () => {};
 let submitting = false;
@@ -58,11 +60,12 @@ onAuthStateChanged(auth, async current => {
   user = current;
   team = null;
   state = initial();
-  assignments = {};
   draft = [];
   ready = connected = submitting = false;
   $('setup').classList.remove('hide');
   $('app').classList.add('hide');
+  pairing = {};
+  $('joinStatus').textContent = '';
   if (!current) return;
 
   try {
@@ -87,21 +90,23 @@ onAuthStateChanged(auth, async current => {
   $('teacherPanel').classList.toggle('hide', !isTeacher());
   $('studentPanel').classList.toggle('hide', isTeacher());
   $('identity').textContent = isTeacher() ? '🎅 教師控制台' : '🛷 學生平板';
-  $('studentUid').textContent = '裝置 UID（交給老師配對）：' + current.uid;
+
 
   if (isTeacher()) {
     listeners.push(onValue(ref(db, 'game'), snapshot => {
       const game = snapshot.val();
       applyState(game?.public, game?.submissions);
     }, showReadError));
-    listeners.push(onValue(ref(db, 'assignments'), snapshot => {
-      assignments = snapshot.val() || {};
-      render();
+    listeners.push(onValue(ref(db, 'pairing'), snapshot => {
+      pairing = snapshot.val() || {};
+      renderPairing();
     }, showReadError));
   } else {
-    listeners.push(onValue(ref(db, 'assignments/' + current.uid), snapshot => {
+    listeners.push(onValue(ref(db, 'pairing/members/' + current.uid), snapshot => {
+      const nextTeam = snapshot.val()?.team || null;
+      if (nextTeam === team) return;
       stopGame();
-      team = snapshot.val();
+      team = nextTeam;
       ready = false;
       draft = [];
       let publicState, submission;
@@ -130,7 +135,10 @@ onAuthStateChanged(auth, async current => {
       }
       render();
     }, showReadError));
+    const code = new URLSearchParams(location.hash.slice(1)).get('join');
+    if (/^[a-f0-9]{32}$/.test(code || '')) void joinSeat(current, code);
   }
+  if (user !== current) return;
   listeners.push(onValue(ref(db, '.info/connected'), snapshot => {
     connected = snapshot.val() === true;
     $('connection').textContent = connected ? '● 已連線' : '○ 連線中斷';
@@ -142,7 +150,7 @@ function render(){if(!user)return;$('phase').textContent=({idle:'尚未開始',o
 $('revealedMoves').textContent = teams.filter(t => state.revealed?.[t]).map(t =>
   names[t] + '：' + state.revealed[t].moves.map(m =>
     ({claim:'占領', attack:'進攻', defend:'防守'})[m.type] + '第 ' + (m.cell + 1) + ' 格'
-  ).join('、')).join('｜');$('history').textContent=(state.history||[]).map(h=>`第${h.round}回合：${h.summary}`).join('\n');if(role==='teacher'){$('submissions').innerHTML=teams.map(t=>`${names[t]}：${state.submissions?.[t]?'🔒 已封存':'⏳ 未提交'}`).join('　');$('start').disabled=!ready||!connected||state.phase==='open'||state.round>=6;$('resolve').disabled=!ready||!connected||state.phase!=='open'||!teams.every(t=>state.submissions?.[t]);$('event').disabled=!ready||!connected||state.phase!=='open'||![2,4,6].includes(state.round)||!!state.event}if(role==='student'){const submitted=!!state.submissions?.[team];const enabled=ready&&connected&&!submitting&&!!team&&state.phase==='open'&&!submitted;$('teamStatus').textContent=team?`${names[team]}｜${submitted?'🔒 已提交，等待老師公布':enabled?'可輸入兩項行動':'等待老師開啟回合'}`:'尚未配對，請將 UID 告訴老師';document.querySelectorAll('[data-action]').forEach(el=>el.disabled=!enabled);$('submit').disabled=!enabled||draft.length!==2;$('removeMove').disabled=!enabled||!draft.length;$('pending').textContent=draft.map(m=>({claim:'占領',attack:'進攻',defend:'防守'})[m.type]+' '+(m.cell+1)+'格').join('／');}};
+  ).join('、')).join('｜');$('history').textContent=(state.history||[]).map(h=>`第${h.round}回合：${h.summary}`).join('\n');if(role==='teacher'){$('submissions').innerHTML=teams.map(t=>`${names[t]}：${state.submissions?.[t]?'🔒 已封存':'⏳ 未提交'}`).join('　');$('start').disabled=!ready||!connected||state.phase==='open'||state.round>=6;$('resolve').disabled=!ready||!connected||state.phase!=='open'||!teams.every(t=>state.submissions?.[t]);$('event').disabled=!ready||!connected||state.phase!=='open'||![2,4,6].includes(state.round)||!!state.event}if(role==='student'){const submitted=!!state.submissions?.[team];const enabled=ready&&connected&&!submitting&&!!team&&state.phase==='open'&&!submitted;$('teamStatus').textContent=team?`${names[team]}｜${submitted?'🔒 已提交，等待老師公布':enabled?'可輸入兩項行動':'等待老師開啟回合'}`:'尚未入隊，請掃描老師提供的隊伍 QR Code';document.querySelectorAll('[data-action]').forEach(el=>el.disabled=!enabled);$('submit').disabled=!enabled||draft.length!==2;$('removeMove').disabled=!enabled||!draft.length;$('pending').textContent=draft.map(m=>({claim:'占領',attack:'進攻',defend:'防守'})[m.type]+' '+(m.cell+1)+'格').join('／');}};
 function choose(cell){if(!ready||!connected||submitting||role!=='student'||!team||state.phase!=='open'||state.submissions?.[team]||draft.length>=2)return;if(draft.some(m=>m.cell===cell))return alert('兩項指令必須選不同格');const owner=boardArray()[cell];if(kind==='claim'&&owner!=='empty')return alert('占領只能選空格');if(kind==='attack'&&(owner==='empty'||owner===team))return alert('進攻只能選敵方格');if(kind==='defend'&&owner!==team)return alert('防守只能選自己的格');draft.push({type:kind,cell});render()}
 document.querySelectorAll('[data-action]').forEach(el=>el.onclick=()=>{kind=el.dataset.action;$('selection').textContent='目前選擇：'+({claim:'占領空格',attack:'進攻敵格',defend:'防守己格'})[kind]+'，請點選棋盤'});$('removeMove').onclick=()=>{draft.pop();render()};
 $('submit').onclick = async () => {
@@ -161,23 +169,99 @@ $('submit').onclick = async () => {
   }
 };
 
-$('pair').onclick = async () => {
-  if (!connected) return alert('請等候連線恢復');
-  const uid = $('pairUid').value.trim();
-  const teamToPair = $('pairTeam').value;
-  if (!/^[A-Za-z0-9_-]{15,128}$/.test(uid)) return alert('請輸入有效 UID');
+async function joinSeat(current, code) {
+  const status = $('joinStatus');
+  status.textContent = '正在加入隊伍…';
   try {
-    await runTransaction(ref(db, 'assignments'), current => {
-      const next = {...current};
-      for (const assignedUid of Object.keys(next)) {
-        if (next[assignedUid] === teamToPair) delete next[assignedUid];
+    const invitation = (await get(ref(db, 'pairing/invites/' + code))).val();
+    if (user !== current) return;
+    if (!teams.includes(invitation?.team)) throw new Error('Invalid invitation');
+    await update(ref(db), {
+      ['pairing/invites/' + code + '/uid']: current.uid,
+      ['pairing/members/' + current.uid]: {team: invitation.team, code}
+    });
+    if (user !== current) return;
+    status.textContent = '已加入' + names[invitation.team];
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch {
+    if (user !== current) return;
+    status.textContent = '無法加入。請確認連結正確、該隊尚未綁定，且本機未加入其他隊伍。';
+  }
+}
+
+function renderPairing() {
+  const container = $('teamInvites');
+  container.replaceChildren();
+  $('createInvites').hidden = teams.every(team => pairing.codes?.[team]);
+  for (const team of teams) {
+    const code = pairing.codes?.[team];
+    if (!code) continue;
+    const uid = pairing.invites?.[code]?.uid;
+    const card = document.createElement('section');
+    card.className = 'invite';
+    const title = document.createElement('h4');
+    title.textContent = names[team] + '｜' + (uid ? '已綁定平板' : '等待平板加入');
+    const link = document.createElement('a');
+    link.href = gameUrl + '#join=' + code;
+    link.textContent = '隊伍專屬連結';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    const qr = document.createElement('div');
+    const image = window.qrcode(0, 'M');
+    image.addData(link.href);
+    image.make();
+    qr.innerHTML = image.createSvgTag(5, 20);
+    qr.setAttribute('aria-label', names[team] + '配對 QR Code');
+    const copy = document.createElement('button');
+    copy.textContent = '複製連結';
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(link.href);
+        copy.textContent = '已複製';
+      } catch {
+        alert('請長按隊伍專屬連結並選擇複製');
       }
-      next[uid] = teamToPair;
+    };
+    const release = document.createElement('button');
+    release.textContent = '解除綁定';
+    release.disabled = !uid;
+    release.onclick = () => releaseSeat(code, uid);
+    card.append(title, qr, link, copy, release);
+    container.append(card);
+  }
+}
+
+$('createInvites').onclick = async () => {
+  if (!connected) return alert('請等候連線恢復');
+  const newCodes = Object.fromEntries(teams.map(team => [team, crypto.randomUUID().replaceAll('-', '')]));
+  try {
+    await runTransaction(ref(db, 'pairing'), current => {
+      const next = {codes: {...current?.codes}, invites: {...current?.invites}, members: {...current?.members}};
+      for (const team of teams) {
+        if (next.codes[team]) continue;
+        const code = newCodes[team];
+        next.codes[team] = code;
+        next.invites[code] = {team};
+      }
       return next;
     }, {applyLocally: false});
-    $('pairResult').textContent = '已將裝置配對至 ' + names[teamToPair];
   } catch (error) { alert(error.message); }
 };
+
+async function releaseSeat(code, uid) {
+  if (!connected) return alert('請等候連線恢復');
+  if (!confirm('解除後，另一台平板可用同一張 QR Code 接手。已封存指令會保留。')) return;
+  try {
+    const result = await runTransaction(ref(db, 'pairing'), current => {
+      const invite = current?.invites?.[code];
+      if (invite?.uid !== uid || current?.members?.[uid]?.code !== code) return;
+      delete invite.uid;
+      delete current.members[uid];
+      return current;
+    }, {applyLocally: false});
+    if (!result.committed) alert('綁定已變更，請重新確認');
+  } catch (error) { alert(error.message); }
+}
 
 async function updateGame(transform) {
   if (!isTeacher() || !connected || !ready) return;
