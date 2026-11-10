@@ -58,6 +58,11 @@
             ".validate": false
           }
         }
+      },
+      "missions": {
+        "$team": {
+          ".read": "auth != null && root.child('pairing/members').child(auth.uid).child('team').val() === $team"
+        }
       }
     },
     "pairing": {

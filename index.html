@@ -1,1 +1,105 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>北極16宮格攻防戰</title><style>:root{font-family:system-ui,'Noto Sans TC',sans-serif;color:#fff8eb;background:#142239}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#314960,#142239 65%);min-height:100vh}main{max-width:1050px;margin:auto;padding:20px}h1{color:#f4cf87}h2{margin:8px 0 12px}button,input,select{font:inherit}button{border:1px solid #a9b6c5;background:#304861;color:white;border-radius:10px;padding:11px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:#a0782e;border-color:#f4cf87}.danger{background:#743b45}.card{background:#21334c;border:1px solid #51647c;border-radius:16px;padding:16px;margin:12px 0}.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.muted{color:#bdc8d5}.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:560px}.cell{aspect-ratio:1;background:#30445b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(22px,5vw,42px);border:2px solid #6d7b8c;position:relative}.cell small{font-size:12px}.cell.red{border-color:#ff8c89;background:#673e51}.cell.green{border-color:#8fe3a9;background:#305f59}.cell.gold{border-color:#f4cf87;background:#66563c}.cell.picked{outline:4px solid white}.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:16px}input{background:#101e32;color:white;border:1px solid #77869a;border-radius:8px;padding:10px;max-width:100%}.tag{display:inline-block;border:1px solid #8191a4;border-radius:30px;padding:5px 10px;margin:3px}.log{white-space:pre-wrap;font-size:14px}.hide{display:none!important}@media(max-width:700px){.cols{grid-template-columns:1fr}main{padding:12px}.cell{font-size:26px}}.invite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.invite{padding:10px;background:#18283e;border-radius:12px}.invite h4{margin:0 0 8px}.invite svg{display:block;width:min(190px,100%);height:auto;background:white;margin-bottom:8px}.invite a{display:block;color:#f4cf87;margin-bottom:8px}.invite button{margin:2px}@media print{body *{visibility:hidden}#teamInvites,#teamInvites *{visibility:visible}#teamInvites{position:absolute;inset:0;display:flex;flex-wrap:wrap}#teamInvites .invite{background:white;color:black;break-inside:avoid}#teamInvites a,#teamInvites button{display:none}}</style></head><body><main><h1>❄ 北極16宮格攻防戰</h1><div id="setup" class="card"><h2>選擇登入方式</h2><p class="muted">老師登入後可查看三隊的專屬 QR Code。學生請先掃描隊伍 QR Code，再點學生平板登入。</p><div class="row"><input id="teacherEmail" type="email" autocomplete="username" aria-label="教師電子郵件" placeholder="教師電子郵件"><input id="teacherPassword" type="password" autocomplete="current-password" aria-label="教師密碼" placeholder="教師密碼"><button id="teacherLogin">教師登入</button><button id="studentLogin">學生平板（匿名登入）</button></div><p id="authInfo"></p></div><div id="app" class="hide"><div class="row"><span id="identity" class="tag"></span><span id="phase" class="tag"></span><span id="round" class="tag"></span><span id="connection" class="tag">連線中</span><button id="logout">登出</button></div><div id="teacherPanel" class="card hide"><h2>🎅 聖誕總部控制台</h2><div class="row"><button class="primary" id="start">開啟下一回合</button><button id="resolve">公布並結算</button><button id="reset" class="danger">重設全場</button></div><p id="submissions"></p><h3>隊伍配對 QR Code</h3><p class="muted">可提前產生並列印。每隊同時綁定一台平板，換機時先解除綁定。</p><button id="createInvites">產生三隊 QR Code</button><button id="printInvites" onclick="window.print()">列印 QR Code</button><div id="teamInvites" class="invite-grid"></div><h3>本回合搞笑事件</h3><div class="row"><button id="event">抽取搞笑籤（第2、4、6回合）</button><span id="eventText"></span></div><h3>祕密任務（教師參考）</h3><p class="muted">紅：占領兩角｜綠：中央四格占兩格｜金：任意同一列占三格。正式版可再改為隨機分配。</p><h3>行動結算紀錄</h3><div id="history" class="log"></div></div><div id="studentPanel" class="card hide"><h2>🛷 商會行動台</h2><p id="joinStatus" class="muted" aria-live="polite"></p><p id="teamStatus"></p><div class="row"><button data-action="claim">🚩 占領空格</button><button data-action="attack">⚔ 攻擊敵格</button><button data-action="defend">🛡 防守己格</button></div><p id="selection">選擇行動，再點選棋盤格子</p><div class="row"><button id="removeMove">撤銷最後一項</button><button class="primary" id="submit">封存兩項行動</button></div><p id="pending"></p></div><div class="cols"><div class="card"><h2>🎄 聖誕領地棋盤</h2><div id="board" class="board"></div></div><div class="card"><h2>🏆 即時戰況</h2><div id="score"></div><p id="revealedMoves" aria-live="polite"></p><h3>同步規則</h3><p class="muted">三組各提交兩項指令，封存後不可修改。老師統一結算：防守 → 攻擊 → 占領。同一空格多組占領互相抵銷。</p><p class="muted">同一組兩項指令不得指向相同格子。防守可擋下一次攻擊；攻擊成功會清空敵格；占領只對回合開始時為空、且未被其他組同時爭奪的格子有效。</p></div></div></div></main><script src="https://chukps-north-pole-battle.web.app/firebase-client-config.js"></script><script src="qrcode.js"></script><script type="module" src="app.js?v=qr1"></script></body></html>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>北極16宮格攻防戰</title><style>:root{font-family:system-ui,'Noto Sans TC',sans-serif;color:#fff8eb;background:#142239}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#314960,#142239 65%);min-height:100vh}main{max-width:1050px;margin:auto;padding:20px}h1{color:#f4cf87}h2{margin:8px 0 12px}button,input,select{font:inherit}button{border:1px solid #a9b6c5;background:#304861;color:white;border-radius:10px;padding:11px;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:#a0782e;border-color:#f4cf87}.danger{background:#743b45}.card{background:#21334c;border:1px solid #51647c;border-radius:16px;padding:16px;margin:12px 0}.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.muted{color:#bdc8d5}.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:560px}.cell{aspect-ratio:1;background:#30445b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(22px,5vw,42px);border:2px solid #6d7b8c;position:relative}.cell small{font-size:12px}.cell.red{border-color:#ff8c89;background:#673e51}.cell.green{border-color:#8fe3a9;background:#305f59}.cell.gold{border-color:#f4cf87;background:#66563c}.cell.picked{outline:4px solid white}.cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:16px}input{background:#101e32;color:white;border:1px solid #77869a;border-radius:8px;padding:10px;max-width:100%}.tag{display:inline-block;border:1px solid #8191a4;border-radius:30px;padding:5px 10px;margin:3px}.log{white-space:pre-wrap;font-size:14px}.hide{display:none!important}@media(max-width:700px){.cols{grid-template-columns:1fr}main{padding:12px}.cell{font-size:26px}}.invite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px}.invite{padding:10px;background:#18283e;border-radius:12px}.invite h4{margin:0 0 8px}.invite svg{display:block;width:min(190px,100%);height:auto;background:white;margin-bottom:8px}.invite a{display:block;color:#f4cf87;margin-bottom:8px}.invite button{margin:2px}@media print{body *{visibility:hidden}#teamInvites,#teamInvites *{visibility:visible}#teamInvites{position:absolute;inset:0;display:flex;flex-wrap:wrap}#teamInvites .invite{background:white;color:black;break-inside:avoid}#teamInvites a,#teamInvites button{display:none}}body{--red:#b62c39;--green:#13734b;--gold:#f4cb4f}.cell.red,.score-red,.mission-reveal.red{background:var(--red);color:white;border-color:#ff9aa2}.cell.green,.score-green,.mission-reveal.green{background:var(--green);color:white;border-color:#9de5bf}.cell.gold,.score-gold,.mission-reveal.gold{background:var(--gold);color:#252015;border-color:#fff2ab}.cell small{font-weight:800}.cell-number{position:absolute;top:4px;left:7px;font-size:12px;font-weight:800}.score-list{display:grid;gap:6px}.score-list p{margin:0;padding:8px 12px;border-radius:8px;font-weight:750}.eyebrow{color:#f4cf87;font-weight:750}.round-guide li{margin:0 0 12px}.action-guide,.mission-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.action-guide>div,.mission-options>li{background:#16263d;padding:12px;border-radius:10px}.action-guide p,.mission-options p{margin:6px 0 0}.mission-options{list-style:none;padding:0}.mission-reveal{text-align:center;border:2px solid #8498b1;border-radius:14px;background:#16263d;padding:14px;margin:14px 0}.mission-reveal h3{font-size:clamp(24px,6vw,42px);margin:6px 0}.mission-reveal p{margin:5px 0}.mission-reveal p:last-child{font-size:1.1rem}summary{cursor:pointer;font-weight:750}details{margin:12px 0}nav{margin:10px 0}nav button[aria-pressed=true]{border-color:#f4cf87;background:#59623c}#reset{margin-top:12px}.board{max-width:unset}</style></head><body><main>
+  <h1>❄ 北極 16 宮格攻防戰</h1>
+  <section id="setup" class="card">
+    <h2>選擇登入方式</h2>
+    <p class="muted">學生先掃描隊伍 QR Code，再點「學生平板」。</p>
+    <div class="row">
+      <input id="teacherEmail" type="email" autocomplete="username" aria-label="教師電子郵件" placeholder="教師電子郵件">
+      <input id="teacherPassword" type="password" autocomplete="current-password" aria-label="教師密碼" placeholder="教師密碼">
+      <button id="teacherLogin">教師登入</button>
+      <button id="studentLogin">學生平板（匿名登入）</button>
+    </div>
+  </section>
+  <div id="app" class="hide">
+    <div class="row">
+      <span id="identity" class="tag"></span><span id="connection" class="tag">連線中</span>
+      <button id="logout" class="hide">登出</button>
+    </div>
+    <nav id="teacherNav" class="row hide" aria-label="教師頁面">
+      <button id="showControl" aria-pressed="true">即時戰況與控制</button>
+      <button id="showPairing" aria-pressed="false">平板配對與 QR Code</button>
+    </nav>
+    <section id="pairingPanel" class="card hide">
+      <h2>隊伍配對 QR Code</h2>
+      <p class="muted">每隊綁定一台平板。需要換機時，先解除綁定，再讓新平板掃同一張 QR Code。</p>
+      <button id="createInvites">產生三隊 QR Code</button><button id="printInvites" onclick="window.print()">列印 QR Code</button>
+      <div id="teamInvites" class="invite-grid"></div>
+    </section>
+    <section id="studentIntro" class="hide">
+      <p id="joinStatus" class="muted" aria-live="polite"></p>
+      <article id="studentRules" class="card">
+        <p class="eyebrow">第 1 步・先看規則</p>
+        <h2>每一回合，你們要做什麼？</h2>
+        <ol class="round-guide">
+          <li><strong>先聽老師說明，完成這回合的體能挑戰。</strong> 第 2、4、6 回合還會抽搞笑籤，記得聽老師公布。</li>
+          <li><strong>跟隊友商量，選兩個行動。</strong> 先點行動，再點棋盤上的格子。兩個行動要選不同格，送出前都能改。</li>
+          <li><strong>點「送出行動」，等老師揭曉。</strong> 送出後就鎖定。等三隊都送完，老師會一起公布結果，再開下一回合。</li>
+        </ol>
+        <div class="action-guide">
+          <div><strong>🚩 占領</strong><p>挑一格空格。只有你們選它，就會變成你們的顏色。兩隊以上搶同一格，誰也拿不到。</p></div>
+          <div><strong>⚔ 進攻</strong><p>挑一格別隊的地盤。打中會把它清成空格，要等下一回合才能占領。</p></div>
+          <div><strong>🛡 防守</strong><p>挑一格自己隊的地盤。盾牌可以擋一次進攻，用過就沒了，沒用到也不能留到下一回合。</p></div>
+        </div>
+        <p>全場共六回合。結算時先算防守，再算進攻，最後看誰占到空格。</p>
+        <button id="readRules" class="primary">看完了，去抽祕密任務</button>
+      </article>
+      <article id="studentDraw" class="card hide">
+        <p class="eyebrow">第 2 步・抽祕密任務</p>
+        <h2>你們會抽到哪一張？</h2>
+        <p>下面九張都有可能抽到。老師會一次替三隊抽籤，你們的平板只會揭曉自己隊的任務。</p>
+        <div id="missionReveal" class="mission-reveal" aria-live="polite">
+          <p id="missionTeam"></p><h3 id="missionTitle">等老師抽籤</h3><p id="missionDescription"></p>
+        </div>
+        <button id="enterGame" class="primary hide">記住了，進入棋盤</button>
+        <ul id="missionOptions" class="mission-options"></ul>
+        <button id="backRules">返回規則</button>
+      </article>
+    </section>
+    <section id="playPanel" class="hide">
+      <div class="row"><span id="phase" class="tag"></span><span id="round" class="tag"></span></div>
+      <div class="cols">
+        <section class="card">
+          <h2>🎄 聖誕領地棋盤</h2><div id="board" class="board"></div>
+          <p id="revealedMoves" aria-live="polite"></p>
+        </section>
+        <div>
+          <section class="card">
+            <h2>🏆 即時戰況</h2><div id="score" class="score-list"></div>
+          </section>
+          <section id="teacherPanel" class="card hide">
+            <h2>🎅 回合控制</h2>
+            <div class="row">
+              <button class="primary" id="drawMissions">統一抽籤祕密任務</button>
+              <button class="primary" id="start">開啟下一回合</button>
+              <button id="resolve">公布並結算</button>
+            </div>
+            <p id="drawStatus" aria-live="polite"></p><p id="submissions"></p>
+            <details id="teacherSecrets"><summary>各組祕密任務</summary><div id="missionSummary"></div></details>
+            <h3>本回合搞笑事件</h3>
+            <button id="event">抽搞笑籤（第 2、4、6 回合）</button><p id="eventText"></p>
+            <h3>回合紀錄</h3><div id="history" class="log"></div>
+            <button id="reset" class="danger">重設全場</button>
+          </section>
+          <section id="studentPanel" class="card hide">
+            <h2>🛷 這回合怎麼走？</h2><p id="teamStatus"></p>
+            <details><summary>再看一次本隊祕密任務</summary><p id="studentMissionReminder"></p></details>
+            <div class="row">
+              <button data-action="claim">🚩 占領空格</button>
+              <button data-action="attack">⚔ 進攻敵格</button>
+              <button data-action="defend">🛡 防守己格</button>
+            </div>
+            <p id="selection">先選行動，再點棋盤。</p><p id="pending"></p>
+            <div class="row">
+              <button id="removeMove">撤銷最後一項</button>
+              <button class="primary" id="submit">送出行動</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="https://chukps-north-pole-battle.web.app/firebase-client-config.js"></script>
+<script src="qrcode.js"></script>
+<script type="module" src="app.js?v=missions1"></script>
+</body></html>
