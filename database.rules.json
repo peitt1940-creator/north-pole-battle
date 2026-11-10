@@ -1,0 +1,72 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "teachers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+    "assignments": {
+      ".read": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".validate": "newData.val() === 'red' || newData.val() === 'green' || newData.val() === 'gold'"
+      }
+    },
+    "game": {
+      ".read": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('teachers').child(auth.uid).val() === true",
+      "public": {
+        ".read": "auth != null && (root.child('assignments').child(auth.uid).exists() || root.child('teachers').child(auth.uid).val() === true)"
+      },
+      "submissions": {
+        "$team": {
+          ".read": "auth != null && root.child('assignments').child(auth.uid).val() === $team",
+          ".write": "auth != null && root.child('assignments').child(auth.uid).val() === $team && ($team === 'red' || $team === 'green' || $team === 'gold') && root.child('game/public/phase').val() === 'open' && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['round','session','moves']) && newData.child('round').val() === root.child('game/public/round').val() && newData.child('session').val() === root.child('game/public/session').val()",
+          "round": {
+            ".validate": "newData.isNumber()"
+          },
+          "session": {
+            ".validate": "newData.isString()"
+          },
+          "moves": {
+            "0": {
+              ".validate": "newData.hasChildren(['cell','type']) && ((newData.child('type').val() === 'claim' && root.child('game/public/board').child(newData.child('cell').val() + '').val() === 'empty') || (newData.child('type').val() === 'defend' && root.child('game/public/board').child(newData.child('cell').val() + '').val() === $team) || (newData.child('type').val() === 'attack' && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== 'empty' && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== $team && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== null))",
+              "cell": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 15 && newData.val() % 1 === 0"
+              },
+              "type": {
+                ".validate": "newData.val() === 'claim' || newData.val() === 'attack' || newData.val() === 'defend'"
+              },
+              "$other": {
+                ".validate": false
+              }
+            },
+            "1": {
+              ".validate": "newData.hasChildren(['cell','type']) && ((newData.child('type').val() === 'claim' && root.child('game/public/board').child(newData.child('cell').val() + '').val() === 'empty') || (newData.child('type').val() === 'defend' && root.child('game/public/board').child(newData.child('cell').val() + '').val() === $team) || (newData.child('type').val() === 'attack' && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== 'empty' && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== $team && root.child('game/public/board').child(newData.child('cell').val() + '').val() !== null))",
+              "cell": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 15 && newData.val() % 1 === 0"
+              },
+              "type": {
+                ".validate": "newData.val() === 'claim' || newData.val() === 'attack' || newData.val() === 'defend'"
+              },
+              "$other": {
+                ".validate": false
+              }
+            },
+            ".validate": "newData.hasChildren(['0','1']) && newData.child('0/cell').val() !== newData.child('1/cell').val()",
+            "$other": {
+              ".validate": false
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
+  }
+}
