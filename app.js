@@ -60,21 +60,56 @@ const missions = {
   crossing: ['十字路口', '遊戲結束時，占住中央四格中的一格，再占住跟它相鄰的任意兩格。'],
   shield: ['防禦專家', '六回合裡，有一次真的用盾牌擋下別隊的進攻就算成功。']
 };
-let studentStage = 'rules';
+const localProgress = new Map();
+
+function progressKey(section) {
+  return 'north-pole:' + user.uid + ':' + (section === 'rules' ? '' : team + ':') + section;
+}
+
+function readProgress(section) {
+  const key = progressKey(section);
+  if (localProgress.has(key)) return localProgress.get(key);
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+
+function saveProgress(section, value) {
+  const key = progressKey(section);
+  localProgress.set(key, value);
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+function studentStage() {
+  if (!readProgress('rules')) return 'rules';
+  if (!ready || !team || !teamMission) return 'draw';
+  const mission = readProgress('mission');
+  if (mission?.id !== teamMission) return 'draw';
+  if (mission.session === (state.session ?? null)) return 'game';
+  // Games that already drew missions before this update first get a session in round one.
+  if (mission.session === null && state.session && state.round === 1) {
+    saveProgress('mission', {id: teamMission, session: state.session});
+    return 'game';
+  }
+  return 'draw';
+}
+
+function saveDraft() {
+  saveProgress('draft', {round: state.round, session: state.session, moves: draft, kind});
+}
 let teacherPage = 'control';
 let teamMission = null;
 let drawnMissions = {};
 
 function renderViews() {
   const teacher = isTeacher();
-  const gameVisible = teacher ? teacherPage === 'control' : studentStage === 'game' && !!teamMission;
+  const stage = teacher ? null : studentStage();
+  const gameVisible = teacher ? teacherPage === 'control' : stage === 'game' && !!teamMission;
   $('logout').classList.toggle('hide', !teacher);
   $('teacherNav').classList.toggle('hide', !teacher);
   $('pairingPanel').classList.toggle('hide', !teacher || teacherPage !== 'pairing');
   $('playPanel').classList.toggle('hide', !gameVisible);
   $('studentIntro').classList.toggle('hide', teacher || gameVisible);
-  $('studentRules').classList.toggle('hide', studentStage !== 'rules');
-  $('studentDraw').classList.toggle('hide', studentStage !== 'draw');
+  $('studentRules').classList.toggle('hide', stage !== 'rules');
+  $('studentDraw').classList.toggle('hide', stage !== 'draw');
   $('showControl').setAttribute('aria-pressed', String(teacherPage === 'control'));
   $('showPairing').setAttribute('aria-pressed', String(teacherPage === 'pairing'));
 
@@ -98,11 +133,11 @@ for (const [title, description] of Object.values(missions)) {
   option.append(heading, detail);
   $('missionOptions').append(option);
 }
-$('readRules').onclick = () => { studentStage = 'draw'; renderViews(); window.scrollTo(0, 0); };
-$('backRules').onclick = () => { studentStage = 'rules'; renderViews(); window.scrollTo(0, 0); };
+$('readRules').onclick = () => { saveProgress('rules', true); renderViews(); window.scrollTo(0, 0); };
+$('backRules').onclick = () => { saveProgress('rules', false); renderViews(); window.scrollTo(0, 0); };
 $('enterGame').onclick = () => {
-  if (!teamMission) return;
-  studentStage = 'game';
+  if (!ready || !team || !teamMission) return;
+  saveProgress('mission', {id: teamMission, session: state.session ?? null});
   renderViews();
   window.scrollTo(0, 0);
 };
@@ -159,7 +194,18 @@ function showReadError(error) {
 
 function applyState(publicState, submissions) {
   const next = publicState || initial();
-  if (next.session !== state.session || next.round !== state.round || next.phase !== state.phase) draft = [];
+  if (!ready || (state.submissions?.[team] && !submissions?.[team]) || next.session !== state.session || next.round !== state.round || next.phase !== state.phase) {
+    draft = [];
+    kind = 'claim';
+    if (role === 'student' && team && next.phase === 'open' && !submissions?.[team]) {
+      const saved = readProgress('draft');
+      if (saved?.session === next.session && saved.round === next.round) {
+        draft = saved.moves;
+        kind = saved.kind;
+      }
+    }
+  }
+  if (role === 'student' && team && submissions?.[team]) draft = [];
   state = {...next, submissions};
   ready = true;
   render();
@@ -178,7 +224,6 @@ onAuthStateChanged(auth, async current => {
   $('setup').classList.remove('hide');
   $('app').classList.add('hide');
   pairing = {};
-  studentStage = 'rules';
   teacherPage = 'control';
   teamMission = null;
   drawnMissions = {};
@@ -227,7 +272,6 @@ onAuthStateChanged(auth, async current => {
       stopGame();
       team = nextTeam;
       teamMission = null;
-      if (studentStage === 'game') studentStage = 'draw';
       ready = false;
       draft = [];
       let publicState, submission;
@@ -252,7 +296,6 @@ onAuthStateChanged(auth, async current => {
         const stopMission = onValue(ref(db, 'game/missions/' + team), result => {
           const nextMission = result.val();
           teamMission = missions[nextMission] ? nextMission : null;
-          if (!teamMission && studentStage === 'game') studentStage = 'draw';
           renderViews();
         }, showReadError);
         stopGame = () => { stopPublic(); stopSubmission(); stopMission(); };
@@ -317,7 +360,10 @@ function render() {
     const allDrawn = renderMissionControls();
     $('submissions').innerHTML = teams.map(t => `<div>${names[t]}：${state.submissions?.[t] ? '🔒 已送出' : '⏳ 未送出'}</div>`).join('');
     $('start').disabled = !allDrawn || !ready || !connected || state.phase === 'open' || state.round >= 6;
-    $('resolve').disabled = !ready || !connected || state.phase !== 'open' || !teams.every(t => state.submissions?.[t]);
+    const allSubmitted = teams.every(t => state.submissions?.[t]);
+    $('resolve').disabled = !ready || !connected || state.phase !== 'open';
+    $('resolve').textContent = state.phase !== 'open' || allSubmitted ? '公布並結算' :
+      state.round >= 6 ? '強制結算並結束' : '強制結算並進入下一回合';
   } else {
     const submitted = !!state.submissions?.[team];
     $('teamStatus').textContent = submitted ? '🔒 已送出，等老師揭曉' : enabled ? '跟隊友商量後，選兩個行動' : '等待老師開啟回合';
@@ -348,15 +394,15 @@ function renderRevealedMoves() {
     const label = document.createElement('strong');
     label.className = 'action-team score-' + t;
     label.textContent = names[t];
-    const moves = state.revealed[t]?.moves || [];
+    const moves = state.revealed?.[t]?.moves || [];
     row.append(label, ' ' + (moves.map(move => actionIcons[move.type] + ' ' + actionNames[move.type] + '第 ' + (move.cell + 1) + ' 格').join('、') || '沒有行動'));
     list.append(row);
   }
 }
 
 function canChoose() {
-  return studentStage === 'game' && !!teamMission && ready && connected && !submitting &&
-    role === 'student' && !!team && state.phase === 'open' && !state.submissions?.[team];
+  return role === 'student' && studentStage() === 'game' && !!teamMission && ready && connected && !submitting &&
+    !!team && state.phase === 'open' && !state.submissions?.[team];
 }
 
 function choose(cell) {
@@ -364,6 +410,7 @@ function choose(cell) {
   const selected = draft.findIndex(move => move.cell === cell);
   if (selected >= 0) {
     draft.splice(selected, 1);
+    saveDraft();
     render();
     return;
   }
@@ -373,10 +420,16 @@ function choose(cell) {
   if (kind === 'attack' && (owner === 'empty' || owner === team)) return alert('進攻只能選敵方格');
   if (kind === 'defend' && owner !== team) return alert('防守只能選自己的格');
   draft.push({type: kind, cell});
+  saveDraft();
   render();
 }
 for (const button of document.querySelectorAll('[data-action]')) {
-  button.onclick = () => { kind = button.dataset.action; render(); };
+  button.onclick = () => {
+    if (!canChoose()) return;
+    kind = button.dataset.action;
+    saveDraft();
+    render();
+  };
 }
 $('submit').onclick = async () => {
   if (!canChoose() || draft.length !== 2) return;
@@ -385,7 +438,6 @@ $('submit').onclick = async () => {
   const {round, session} = state;
   try {
     await set(ref(db, 'game/submissions/' + team), {round, session, moves: draft.map(move => ({...move}))});
-    draft = [];
   } catch (error) {
     alert('提交未完成，請確認回合及連線狀態：' + error.message);
   } finally {
@@ -498,9 +550,11 @@ async function updateGame(transform) {
 
 $('drawMissions').onclick = () => {
   const chosen = drawMissionSet();
+  const session = crypto.randomUUID();
   return updateGame(game => {
     if (game?.missions) return;
-    return {...game, missions: chosen};
+    const current = game?.public || initial();
+    return {...game, missions: chosen, public: {...current, session: current.session || session}};
   });
 };
 
@@ -519,14 +573,30 @@ function settle(old){const board=Array.from({length:16},(_,i)=>old.board?.[i]||'
  if((old.board?.[cell]||'empty')==='empty'&&claimants.length===1)board[Number(cell)]=claimants[0];}
  const summary=teams.map(t=>`${names[t]} ${board.filter(x=>x===t).length}格`).join('，');return {...old,board,phase:old.round>=6?'finished':'revealed',history:[...(old.history||[]),{round:old.round,summary}],submissions:null};}
 $('resolve').onclick = () => {
+  if (!ready || !connected || state.phase !== 'open') return;
   const {round, session} = state;
+  const missing = teams.filter(t => !state.submissions?.[t]);
+  const force = missing.length > 0;
+  if (force && !confirm(missing.map(t => names[t]).join('、') +
+    '尚未送出，未送出的隊伍本輪視為沒有行動。確定要結算並' +
+    (round >= 6 ? '結束遊戲' : '進入下一回合') + '嗎？')) return;
+
+  const advance = force && round < 6;
+  const event = advance ? drawRoundEvent(round + 1) : null;
   return updateGame(game => {
     const current = game?.public;
-    const submissions = game?.submissions;
-    if (current?.session !== session || current?.round !== round || current?.phase !== 'open' ||
-        !teams.every(t => submissions?.[t]?.session === session && submissions[t].round === round)) return;
+    if (current?.session !== session || current?.round !== round || current?.phase !== 'open') return;
+    const submissions = {};
+    for (const t of teams) {
+      const entry = game.submissions?.[t];
+      if (entry && entry.session === session && entry.round === round) submissions[t] = entry;
+      else if (!force) return;
+    }
+
     const {submissions: discarded, ...result} = settle({...current, submissions});
-    return {missions: game.missions, public: {...result, revealed: submissions}};
+    const revealed = Object.fromEntries(teams.map(t => [t, submissions[t] || {round}]));
+    const next = advance ? {...result, round: round + 1, phase: 'open', event} : result;
+    return {missions: game.missions, public: {...next, revealed}};
   });
 };
 
